@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>TradFi & Options Quiz</title>
+<style>
+  :root {
+    --bg: #0c0c0c;
+    --card: #151515;
+    --gold: #f0b90b;
+    --green: #02c076;
+    --red: #f6465d;
+    --text: #eaecef;
+    --dim: #848e9c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .mono { font-family: "SF Mono", "Roboto Mono", ui-monospace, monospace; }
+  .wrap { width: 100%; max-width: 480px; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .progress-dots { display: flex; gap: 6px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #2b2f36; }
+  .dot.done { background: var(--gold); }
+  .xp { font-size: 15px; color: var(--gold); letter-spacing: 0.02em; }
+  .timer-ring { position: relative; width: 56px; height: 56px; margin: 0 auto 22px; }
+  .timer-ring svg { transform: rotate(-90deg); }
+  .timer-ring circle { fill: none; stroke-width: 4; }
+  .ring-bg { stroke: #2b2f36; }
+  .ring-fg { stroke: var(--gold); stroke-linecap: round; transition: stroke-dashoffset 1s linear, stroke 0.3s; }
+  .timer-num { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 18px; font-weight: 600; }
+  .card { background: var(--card); border: 1px solid #23262c; border-radius: 8px; padding: 24px; }
+  .q-label { color: var(--dim); font-size: 12px; margin-bottom: 8px; }
+  .q-text { font-size: 18px; line-height: 1.4; margin: 0 0 20px; font-weight: 600; }
+  .options { display: flex; flex-direction: column; gap: 10px; }
+  .opt { display: flex; align-items: center; gap: 12px; background: #1c1f26; border: 1px solid #2b2f36; border-radius: 6px; padding: 13px 14px; color: var(--text); font-size: 15px; text-align: left; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+  .opt:hover:not(:disabled) { border-color: var(--gold); }
+  .opt:disabled { cursor: default; }
+  .opt .k { color: var(--dim); font-family: "SF Mono", "Roboto Mono", ui-monospace, monospace; font-size: 12px; flex-shrink: 0; }
+  .opt.correct { border-color: var(--green); background: rgba(2,192,118,0.12); }
+  .opt.incorrect { border-color: var(--red); background: rgba(246,70,93,0.12); }
+  .opt.reveal-correct { border-color: var(--green); }
+  .result-bar { margin-top: 16px; min-height: 20px; font-size: 13px; color: var(--dim); }
+  .result-bar.correct { color: var(--green); }
+  .result-bar.incorrect { color: var(--red); }
+  .next-btn { margin-top: 16px; width: 100%; background: var(--gold); color: #0c0c0c; border: none; border-radius: 6px; padding: 13px; font-size: 15px; font-weight: 700; cursor: pointer; display: none; }
+  .next-btn.show { display: block; }
+  .summary { text-align: center; }
+  .summary .big { font-size: 42px; font-weight: 700; color: var(--gold); margin: 8px 0 4px; }
+  .summary .sub { color: var(--dim); font-size: 14px; margin-bottom: 24px; }
+  .restart-btn { background: transparent; border: 1px solid var(--gold); color: var(--gold); border-radius: 6px; padding: 12px 20px; font-size: 14px; cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="progress-dots" id="dots"></div>
+    <div class="xp mono">XP: <span id="xpVal">0</span></div>
+  </div>
+  <div id="quizArea">
+    <div class="timer-ring">
+      <svg width="56" height="56">
+        <circle class="ring-bg" cx="28" cy="28" r="24"></circle>
+        <circle class="ring-fg" id="ringFg" cx="28" cy="28" r="24"></circle>
+      </svg>
+      <div class="timer-num mono" id="timerNum">15</div>
+    </div>
+    <div class="card">
+      <div class="q-label" id="qLabel">Question 1 of 12</div>
+      <p class="q-text" id="qText"></p>
+      <div class="options" id="options"></div>
+      <div class="result-bar" id="resultBar"></div>
+      <button class="next-btn" id="nextBtn">Next question</button>
+    </div>
+  </div>
+  <div id="summaryArea" style="display:none;">
+    <div class="card summary">
+      <div class="q-label">FINAL SCORE</div>
+      <div class="big mono" id="finalXp">0</div>
+      <div class="sub" id="finalStats"></div>
+      <button class="restart-btn" onclick="location.reload()">Try again</button>
+    </div>
+  </div>
+</div>
+<script>
+const QUESTIONS = [
+  {q:"Call = right to buy; Put = right to sell — is this correct?", opts:["Call = right to sell; Put = right to buy","Call = right to buy; Put = right to sell","Both give the right to sell","Neither gives any right"], correct:1},
+  {q:"What is an option's strike price?", opts:["Option's trading fee","Predetermined exercise price","Current market price","Time to expiration"], correct:1},
+  {q:"In options, what does Theta measure?", opts:["The perpetual funding rate","Sensitivity to volatility","Price change as time decreases","Strike price movement"], correct:2},
+  {q:"What is the maximum loss for a Commodity Option buyer?", opts:["The premium paid","The strike price","The contract's full value","Unlimited"], correct:0},
+  {q:"What happens to an in-the-money Commodity Option at expiration?", opts:["It is automatically exercised","It automatically renews","It becomes a perpetual contract","It expires worthless"], correct:0},
+  {q:"Which expiry structures are available for Binance Commodity Options?", opts:["One hour and four hours","They have no expiry","One day and one week","One month and one year"], correct:2},
+  {q:"What exercise style do Binance Commodity Options use?", opts:["Perpetual-style","European-style","American-style","Asian-style"], correct:1},
+  {q:"Which action is available to retail Commodity Options users?", opts:["Short-sell without margin","Buy to open and sell to close","Sell to open only","Write uncovered calls"], correct:1},
+  {q:"When can Binance TradFi Perpetuals be traded?", opts:["Weekends only","24/7","Only during U.S. market hours","Only during pre-market"], correct:1},
+  {q:"Do Binance TradFi Perpetuals have an expiry date?", opts:["Yes, every week","Yes, every quarter","No, they have no expiry date","Yes, every month"], correct:2},
+  {q:"Which asset categories have been included among Binance TradFi Perpetuals?", opts:["Equities, ETFs and commodities","Fiat currencies only","NFTs and gaming items","Real estate tokens"], correct:0},
+  {q:"Which index mode applies to equity and commodity TradFi Perps on weekends?", opts:["Fixed Price Mode","Auction Mode","Orderbook EWMA Mode","Last Price Mode"], correct:2},
+];
+const TIME_LIMIT = 15;
+let current = 0, totalXp = 0, correctCount = 0, timer = null, timeLeft = TIME_LIMIT, answered = false;
+const CIRC = 2 * Math.PI * 24;
+function buildDots() {
+  const dotsEl = document.getElementById('dots');
+  dotsEl.innerHTML = '';
+  QUESTIONS.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i < current ? ' done' : '');
+    dotsEl.appendChild(d);
+  });
+}
+function loadQuestion() {
+  answered = false;
+  timeLeft = TIME_LIMIT;
+  const q = QUESTIONS[current];
+  document.getElementById('qLabel').textContent = `Question ${current + 1} of ${QUESTIONS.length}`;
+  document.getElementById('qText').textContent = q.q;
+  document.getElementById('resultBar').textContent = '';
+  document.getElementById('resultBar').className = 'result-bar';
+  document.getElementById('nextBtn').classList.remove('show');
+  buildDots();
+  const optsEl = document.getElementById('options');
+  optsEl.innerHTML = '';
+  const letters = ['A', 'B', 'C', 'D'];
+  q.opts.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'opt';
+    btn.innerHTML = `<span class="k">${letters[i]}</span><span>${opt}</span>`;
+    btn.onclick = () => selectAnswer(i);
+    optsEl.appendChild(btn);
+  });
+  const ring = document.getElementById('ringFg');
+  ring.style.strokeDasharray = CIRC;
+  ring.style.strokeDashoffset = 0;
+  ring.style.stroke = 'var(--gold)';
+  document.getElementById('timerNum').textContent = timeLeft;
+  clearInterval(timer);
+  timer = setInterval(tick, 1000);
+}
+function tick() {
+  timeLeft -= 1;
+  document.getElementById('timerNum').textContent = Math.max(timeLeft, 0);
+  const ring = document.getElementById('ringFg');
+  const offset = CIRC * (1 - timeLeft / TIME_LIMIT);
+  ring.style.strokeDashoffset = offset;
+  if (timeLeft <= 5) ring.style.stroke = 'var(--red)';
+  if (timeLeft <= 0) {
+    clearInterval(timer);
+    selectAnswer(-1);
+  }
+}
+function selectAnswer(idx) {
+  if (answered) return;
+  answered = true;
+  clearInterval(timer);
+  const q = QUESTIONS[current];
+  const opts = document.querySelectorAll('.opt');
+  opts.forEach(o => o.disabled = true);
+  const isCorrect = idx === q.correct;
+  let earned = 0;
+  if (isCorrect) {
+    earned = Math.round(500 + 500 * (timeLeft / TIME_LIMIT));
+    totalXp += earned;
+    correctCount += 1;
+    opts[idx].classList.add('correct');
+    document.getElementById('resultBar').textContent = `Correct — +${earned} XP`;
+    document.getElementById('resultBar').className = 'result-bar correct';
+  } else {
+    if (idx >= 0) opts[idx].classList.add('incorrect');
+    opts[q.correct].classList.add('reveal-correct');
+    document.getElementById('resultBar').textContent = idx === -1 ? 'Time\'s up — 0 XP' : 'Incorrect — 0 XP';
+    document.getElementById('resultBar').className = 'result-bar incorrect';
+  }
+  document.getElementById('xpVal').textContent = totalXp;
+  document.getElementById('nextBtn').classList.add('show');
+}
+document.getElementById('nextBtn').onclick = () => {
+  current += 1;
+  if (current >= QUESTIONS.length) {
+    showSummary();
+  } else {
+    loadQuestion();
+  }
+};
+function showSummary() {
+  document.getElementById('quizArea').style.display = 'none';
+  document.getElementById('summaryArea').style.display = 'block';
+  document.getElementById('finalXp').textContent = totalXp;
+  document.getElementById('finalStats').textContent = `${correctCount} of ${QUESTIONS.length} correct`;
+  buildDots();
+}
+loadQuestion();
+</script>
+</body>
+</html>
